@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>2048 Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #96e0dd;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+
+        h1 {
+            margin-top: 20px;
+        }
+
+        #score {
+            margin: 10px;
+            font-size: 18px;
+        }
+
+        .board {
+            width: 400px;
+            height: 400px;
+            margin: 30px auto;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-gap: 10px;
+            background-color: #1b1713;
+            padding: 10px;
+            border-radius: 10px;
+        }
+
+        .tile {
+            background-color: #cdc1b4;
+            width: 90px;
+            height: 90px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 28px;
+            font-weight: bold;
+            border-radius: 5px;
+            color: #776e65;
+            transition: all 0.2s ease-in-out;
+        }
+        .tile[data-value="2"]   { background-color: #f0e5da; color: #150f09; }
+.tile[data-value="4"]   { background-color: #afaaa0; color: #000000; }
+.tile[data-value="8"]   { background-color: #f9b87d; color: #000000; }
+.tile[data-value="16"]  { background-color: #f59563; color: #000000; }
+.tile[data-value="32"]  { background-color: #f67c5f; color: #000000; }
+.tile[data-value="64"]  { background-color: #f65e3b; color: #000000; }
+.tile[data-value="128"] { background-color: #edcf72; color: #000000; font-size: 24px; }
+.tile[data-value="256"] { background-color: #edcc61; color: #000000; font-size: 24px; }
+.tile[data-value="512"] { background-color: #edc850; color: #000000; font-size: 24px; }
+.tile[data-value="1024"]{ background-color: #edc53f; color: #000000; font-size: 20px; }
+.tile[data-value="2048"]{ background-color: #edc22e; color: #000000; font-size: 20px; }
+
+        #game-over-popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .popup-content {
+            background: #f9f6f2;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 0 15px rgba(0,0,0,0.3);
+        }
+
+        .popup-content button {
+            padding: 10px 20px;
+            background: #8f7a66;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .popup-content button:hover {
+            background: #a68d75;
+        }
+    </style>
+</head>
+<body>
+    <h1>Welcome <span id="player-name"></span>!</h1>
+    <b><div id="score">Score: 0</div></b>
+    <div class="board" id="board"></div>
+
+    <!-- Game Over Popup -->
+    <div id="game-over-popup">
+        <div class="popup-content">
+            <h2>Game Over!</h2>
+            <p id="final-score-text"></p>
+            <button onclick="restartGame()">Play Again</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
