@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Login - 2048</title>
+  <title>Register - 2048</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body class="auth-page">
@@ -24,29 +24,29 @@
 
       <header class="auth-header">
         <div class="title-wrap">
-          <h1>Login</h1>
-          <p class="subtitle">Welcome back! Continue your game</p>
+          <h1>Register</h1>
+          <p class="subtitle">Create your account and start playing</p>
         </div>
       </header>
 
       <main>
-        <form id="login-form" class="auth-form">
+        <form id="register-form" class="auth-form">
           <label class="auth-field">
             <span>Username</span>
-            <input name="username" placeholder="Enter your username" required />
+            <input name="username" placeholder="Choose a username" required />
           </label>
 
           <label class="auth-field">
             <span>Password</span>
-            <input name="password" type="password" placeholder="Enter your password" required />
+            <input name="password" type="password" placeholder="Create a strong password" required />
           </label>
 
           <div class="auth-actions">
-            <button type="submit" class="restart-btn primary-btn">Login</button>
-            <a href="register.html" class="auth-link">Create account</a>
+            <button type="submit" class="restart-btn primary-btn">Create account</button>
+            <a href="login.html" class="auth-link">Already have one?</a>
           </div>
 
-          <div id="login-msg" class="auth-message" aria-live="polite"></div>
+          <div id="register-msg" class="auth-message" aria-live="polite"></div>
         </form>
       </main>
     </div>

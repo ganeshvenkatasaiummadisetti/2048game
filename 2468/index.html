@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>2048 game</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <div class="container">
+    <header>
+      <div class="title-wrap">
+        <h1>2048</h1>
+        <p class="subtitle">Join the numbers and get to 2048!</p>
+      </div>
+      <div class="score-container">
+          <div class="score-box">Score<br><span id="score">0</span></div>
+          <div class="score-box best">Best<br><span id="best">0</span></div>
+          <div class="controls">
+            <button id="restart" class="restart-btn">New Game</button>
+          </div>
+          <div class="user-area" id="user-area" style="margin-left:8px;display:flex;align-items:center;gap:8px">
+            <!-- Filled by auth.js -->
+          </div>
+        </div>
+    </header>
+
+    <div class="board" aria-label="2048 board">
+      <div class="tile"></div>
+      <div class="tile"></div>
+      <div class="tile"></div>
+      <div class="tile"></div>
+      <div class="tile"></div>
+      <div class="tile"></div>
+      <div class="tile"></div>
+      <div class="tile"></div>
+      <div class="tile"></div>
+      <div class="tile"></div>
+      <div class="tile"></div>
+      <div class="tile"></div>
+      <div class="tile"></div>
+      <div class="tile"></div>
+      <div class="tile"></div>
+      <div class="tile"></div>
+    </div>
+
+    <div id="message" class="message" role="status" aria-live="polite"></div>
+
+    <footer class="controls-help">
+      <small>Use arrow keys or swipe to move tiles. Click Restart to start over.</small>
+    </footer>
+
+    <div id="modal" class="modal" hidden>
+      <div class="modal-content">
+        <h2 id="modal-title">Game Over</h2>
+        <p id="modal-msg">No more moves</p>
+        <div class="modal-actions">
+          <button id="modal-restart" class="restart-btn">Try again</button>
+          <button id="modal-close" class="restart-btn">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="auth.js" defer></script>
+  <script src="script.js" defer></script>
+  </body>
+</html>

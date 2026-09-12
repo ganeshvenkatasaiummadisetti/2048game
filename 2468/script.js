@@ -1,142 +1,335 @@
-const boardElement = document.getElementById("board");
-const scoreElement = document.getElementById("score");
-let board = [];
+const boardSize = 4;
 let score = 0;
+const board = Array.from({ length: boardSize }, () => Array(boardSize).fill(0));
 
-document.getElementById("player-name").textContent = localStorage.getItem("username");
+const boardContainer = document.querySelector('.board');
+const scoreEl = document.getElementById('score');
+const messageEl = document.getElementById('message');
+let lastAdded = null;
+const bestEl = document.getElementById('best');
+const modal = document.getElementById('modal');
+const modalTitle = document.getElementById('modal-title');
+const modalMsg = document.getElementById('modal-msg');
 
-function initBoard() {
-    board = Array.from({ length: 4 }, () => Array(4).fill(0));
-    score = 0;
-    addRandomTile();
-    addRandomTile();
-    drawBoard();
-}
-
-function addRandomTile() {
-    let empty = [];
-    for (let i = 0; i < 4; i++) {
-        for (let j = 0; j < 4; j++) {
-            if (board[i][j] === 0) empty.push({ x: i, y: j });
-        }
-    }
-    if (empty.length > 0) {
-        let { x, y } = empty[Math.floor(Math.random() * empty.length)];
-        board[x][y] = Math.random() < 0.9 ? 2 : 4;
+// Require login to play: redirect to login page when no current user
+if (typeof getCurrentUser === 'function') {
+    const current = getCurrentUser();
+    if (!current) {
+        window.location.href = 'login.html';
     }
 }
 
-function drawBoard() {
-    boardElement.innerHTML = "";
-    board.forEach(row => {
-        row.forEach(val => {
-            const tile = document.createElement("div");
-            tile.className = "tile";
-            if (val !== 0) {
-                tile.textContent = val;
-                tile.setAttribute("data-value", val);
+// Touch swipe support
+let touchStartX = 0;
+let touchStartY = 0;
+
+function showMessage(text, time = 2000) {
+    if (!messageEl) return;
+    messageEl.innerText = text;
+    messageEl.style.display = 'block';
+    setTimeout(() => (messageEl.style.display = 'none'), time);
+}
+
+function display() {
+    if (!boardContainer) return;
+    let index = 0;
+    for (let row = 0; row < boardSize; row++) {
+        for (let col = 0; col < boardSize; col++) {
+            let cell = boardContainer.children[index];
+            let value = board[row][col];
+            if (!cell) continue;
+            cell.dataset.value = value;
+            if (value === 0) {
+                cell.innerText = '';
+                cell.style.color = '';
+                cell.style.backgroundColor = '';
+                cell.className = 'tile';
             } else {
-                tile.textContent = "";
-                tile.removeAttribute("data-value");
+                cell.innerText = value;
+                cell.style.color = value >= 128 ? 'white' : 'black';
+                cell.style.backgroundColor = '';
+                // use CSS preset class when available, fallback to computed color
+                const cls = tileClassForValue(value);
+                cell.className = 'tile ' + (cls || '');
+                if (!cls) cell.style.backgroundColor = getTileColor(value);
             }
-            boardElement.appendChild(tile);
-        });
-    });
-    scoreElement.textContent = `Score: ${score}`;
-}
-
-function slide(row) {
-    row = row.filter(val => val);
-    for (let i = 0; i < row.length - 1; i++) {
-        if (row[i] === row[i + 1]) {
-            row[i] *= 2;
-            score += row[i];
-            row[i + 1] = 0;
+            index++;
         }
     }
-    row = row.filter(val => val);
-    while (row.length < 4) row.push(0);
-    return row;
+    if (scoreEl) scoreEl.innerText = score;
+    if (bestEl) bestEl.innerText = getBest();
+
+    // animate newly added tile
+    if (lastAdded && boardContainer.children.length === 16) {
+        const idx = lastAdded.row * boardSize + lastAdded.col;
+        const el = boardContainer.children[idx];
+        if (el) {
+            el.classList.add('tile--new');
+            setTimeout(() => el.classList.remove('tile--new'), 260);
+        }
+        lastAdded = null;
+    }
+}
+
+function assignRandom() {
+    let emptyCells = [];
+    for (let r = 0; r < boardSize; r++) {
+        for (let c = 0; c < boardSize; c++) {
+            if (board[r][c] === 0) emptyCells.push({ row: r, col: c });
+        }
+    }
+
+    if (emptyCells.length === 0) {
+        if (isGameOver()) {
+            checkGameOverAndShow();
+        }
+        return;
+    }
+
+    let { row, col } = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+    board[row][col] = Math.random() > 0.9 ? 4 : 2;
+    lastAdded = { row, col };
+    return { row, col };
+}
+
+// Best score / best-tile handling (per-user when logged in)
+function currentMaxTile() {
+    let max = 0;
+    for (let r = 0; r < boardSize; r++) for (let c = 0; c < boardSize; c++) if (board[r][c] > max) max = board[r][c];
+    return max;
+}
+
+function getBest() {
+    try {
+        if (typeof getCurrentUser === 'function') {
+            const cur = getCurrentUser();
+            if (cur && typeof getUserBest === 'function') {
+                const b = getUserBest(cur);
+                if (b) return Number(b.bestTile || 0);
+            }
+        }
+        return Number(localStorage.getItem('2048_best') || 0);
+    } catch (e) {
+        return 0;
+    }
+}
+
+function setBestIfNeeded() {
+    try {
+        const maxTile = currentMaxTile();
+        if (typeof getCurrentUser === 'function') {
+            const cur = getCurrentUser();
+            if (cur && typeof updateUserBest === 'function') {
+                updateUserBest(cur, score, maxTile);
+                const b = getUserBest(cur);
+                if (bestEl) bestEl.innerText = b ? (b.bestTile || 0) : 0;
+                return;
+            }
+        }
+        // fallback: global best by score
+        const best = Number(localStorage.getItem('2048_best') || 0);
+        if (score > best) {
+            localStorage.setItem('2048_best', String(score));
+            if (bestEl) bestEl.innerText = score;
+        } else {
+            if (bestEl) bestEl.innerText = best;
+        }
+    } catch (e) {
+        // ignore
+    }
+}
+
+function compressRowLeft(row) {
+    let arr = row.filter((v) => v !== 0);
+    for (let i = 0; i < arr.length - 1; i++) {
+        if (arr[i] === arr[i + 1]) {
+            arr[i] = arr[i] * 2;
+            score += arr[i];
+            arr.splice(i + 1, 1);
+        }
+    }
+    while (arr.length < boardSize) arr.push(0);
+    // after merges, update best
+    afterScoreUpdate();
+    return arr;
+}
+
+// after score changes, update best
+function afterScoreUpdate() {
+    setBestIfNeeded();
 }
 
 function moveLeft() {
-    let oldBoard = JSON.stringify(board);
-    for (let i = 0; i < 4; i++) board[i] = slide(board[i]);
-    if (JSON.stringify(board) !== oldBoard) {
-        addRandomTile();
-        drawBoard();
-        checkGameOver();
+    let changed = false;
+    for (let r = 0; r < boardSize; r++) {
+        const newRow = compressRowLeft(board[r]);
+        if (newRow.some((v, i) => v !== board[r][i])) changed = true;
+        board[r] = newRow;
     }
+    return changed;
 }
 
 function moveRight() {
-    let oldBoard = JSON.stringify(board);
-    for (let i = 0; i < 4; i++) {
-        board[i] = slide(board[i].reverse()).reverse();
+    let changed = false;
+    for (let r = 0; r < boardSize; r++) {
+        const reversed = [...board[r]].reverse();
+        const newRow = compressRowLeft(reversed).reverse();
+        if (newRow.some((v, i) => v !== board[r][i])) changed = true;
+        board[r] = newRow;
     }
-    if (JSON.stringify(board) !== oldBoard) {
-        addRandomTile();
-        drawBoard();
-        checkGameOver();
-    }
+    return changed;
+}
+
+function transpose(mat) {
+    return mat[0].map((_, c) => mat.map((r) => r[c]));
 }
 
 function moveUp() {
-    let oldBoard = JSON.stringify(board);
-    board = transpose(board);
-    for (let i = 0; i < 4; i++) board[i] = slide(board[i]);
-    board = transpose(board);
-    if (JSON.stringify(board) !== oldBoard) {
-        addRandomTile();
-        drawBoard();
-        checkGameOver();
+    let trans = transpose(board);
+    let changed = false;
+    for (let r = 0; r < boardSize; r++) {
+        const newRow = compressRowLeft(trans[r]);
+        if (newRow.some((v, i) => v !== trans[r][i])) changed = true;
+        trans[r] = newRow;
     }
+    if (changed) {
+        const moved = transpose(trans);
+        for (let r = 0; r < boardSize; r++) board[r] = moved[r];
+    }
+    return changed;
 }
 
 function moveDown() {
-    let oldBoard = JSON.stringify(board);
-    board = transpose(board);
-    for (let i = 0; i < 4; i++) {
-        board[i] = slide(board[i].reverse()).reverse();
+    let trans = transpose(board);
+    let changed = false;
+    for (let r = 0; r < boardSize; r++) {
+        const newRow = compressRowLeft([...trans[r]].reverse()).reverse();
+        if (newRow.some((v, i) => v !== trans[r][i])) changed = true;
+        trans[r] = newRow;
     }
-    board = transpose(board);
-    if (JSON.stringify(board) !== oldBoard) {
-        addRandomTile();
-        drawBoard();
-        checkGameOver();
+    if (changed) {
+        const moved = transpose(trans);
+        for (let r = 0; r < boardSize; r++) board[r] = moved[r];
+    }
+    return changed;
+}
+
+function handleMove(moveFn) {
+    const moved = moveFn();
+    if (moved) {
+        assignRandom();
+        display();
+        setBestIfNeeded();
+    } else {
+        checkGameOverAndShow();
     }
 }
 
-function transpose(matrix) {
-    return matrix[0].map((_, i) => matrix.map(row => row[i]));
-}
+window.addEventListener('keyup', (e) => {
+    const moves = {
+        ArrowUp: moveUp,
+        ArrowDown: moveDown,
+        ArrowLeft: moveLeft,
+        ArrowRight: moveRight,
+    };
 
-function checkGameOver() {
-    for (let i = 0; i < 4; i++) {
-        for (let j = 0; j < 4; j++) {
-            if (board[i][j] === 0) return false;
-            if (j < 3 && board[i][j] === board[i][j + 1]) return false;
-            if (i < 3 && board[i][j] === board[i + 1][j]) return false;
-        }
-    }
-    document.getElementById("final-score-text").textContent =
-        `${localStorage.getItem("username")}, your final score is: ${score}`;
-    document.getElementById("game-over-popup").style.display = "flex";
-    return true;
-}
-
-function restartGame() {
-    document.getElementById("game-over-popup").style.display = "none";
-    initBoard();
-}
-
-window.addEventListener("keydown", e => {
-    switch (e.key) {
-        case "ArrowLeft": moveLeft(); break;
-        case "ArrowRight": moveRight(); break;
-        case "ArrowUp": moveUp(); break;
-        case "ArrowDown": moveDown(); break;
+    if (moves[e.key]) {
+        e.preventDefault();
+        handleMove(moves[e.key]);
     }
 });
 
-initBoard();
+// Touch swipe support (basic)
+if (boardContainer) {
+    boardContainer.addEventListener('touchstart', (e) => {
+        const t = e.changedTouches[0];
+        touchStartX = t.clientX;
+        touchStartY = t.clientY;
+    }, {passive:true});
+
+    boardContainer.addEventListener('touchend', (e) => {
+        const t = e.changedTouches[0];
+        const dx = t.clientX - touchStartX;
+        const dy = t.clientY - touchStartY;
+        const absX = Math.abs(dx);
+        const absY = Math.abs(dy);
+        const threshold = 30; // minimal swipe distance
+        let moved = false;
+        if (absX > absY && absX > threshold) {
+            if (dx > 0) moved = moveRight(); else moved = moveLeft();
+        } else if (absY > absX && absY > threshold) {
+            if (dy > 0) moved = moveDown(); else moved = moveUp();
+        }
+        if (moved) {
+            assignRandom();
+            display();
+            setBestIfNeeded();
+        } else {
+            checkGameOverAndShow();
+        }
+    }, {passive:true});
+}
+
+function getTileColor(value) {
+    let hue = 220;
+    let saturation = Math.min(100, (100 / 12) * Math.log2(value || 1));
+    let lightness = Math.max(30, 100 - Math.log2(value || 1) * 12);
+    return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+}
+
+// Assign CSS class for a tile value (used for color presets)
+function tileClassForValue(value) {
+    if (!value) return '';
+    if (value <= 2048) return `tile--v${value}`;
+    return 'tile--v2048';
+}
+
+function isGameOver() {
+    // if any zero -> not over
+    for (let r = 0; r < boardSize; r++) for (let c = 0; c < boardSize; c++) if (board[r][c] === 0) return false;
+    // check merges
+    for (let r = 0; r < boardSize; r++) for (let c = 0; c < boardSize - 1; c++) if (board[r][c] === board[r][c + 1]) return false;
+    for (let c = 0; c < boardSize; c++) for (let r = 0; r < boardSize - 1; r++) if (board[r][c] === board[r + 1][c]) return false;
+    return true;
+}
+
+function showModal(title, msg) {
+    if (!modal) return;
+    modalTitle.innerText = title;
+    modalMsg.innerText = msg;
+    modal.hidden = false;
+}
+
+function hideModal() {
+    if (!modal) return;
+    modal.hidden = true;
+}
+
+document.getElementById('modal-restart')?.addEventListener('click', () => { restart(); hideModal(); });
+document.getElementById('modal-close')?.addEventListener('click', hideModal);
+
+// show modal on game over
+function checkGameOverAndShow() {
+    if (isGameOver()) {
+        showModal('Game Over', 'No more moves — try again!');
+    }
+}
+
+function restart() {
+    hideModal();
+    for (let r = 0; r < boardSize; r++) for (let c = 0; c < boardSize; c++) board[r][c] = 0;
+    score = 0;
+    assignRandom();
+    assignRandom();
+    display();
+}
+
+document.getElementById('restart')?.addEventListener('click', restart);
+// guard: remove any leftover register btn behavior
+const regBtn = document.getElementById('registerBtn');
+if (regBtn) regBtn.remove();
+
+// Initialize
+assignRandom();
+assignRandom();
+display();
